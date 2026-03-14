@@ -1401,7 +1401,18 @@ open class STTextView: NSView, NSTextInput, NSTextContent, STTextViewProtocol {
             return textRange.location
         }
 
-        guard let viewportRange = textLayoutManager.textViewportLayoutController.viewportRange else {
+        let documentRange = textLayoutManager.documentRange
+        if textRange.location == documentRange.location, textRange.endLocation == documentRange.endLocation {
+            return nil
+        }
+
+        var viewportRange = textLayoutManager.textViewportLayoutController.viewportRange
+        if viewportRange == nil {
+            layoutViewport()
+            viewportRange = textLayoutManager.textViewportLayoutController.viewportRange
+        }
+
+        guard let viewportRange else {
             return textRange.location
         }
 
