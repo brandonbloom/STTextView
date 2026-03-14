@@ -796,7 +796,7 @@ open class STTextView: NSView, NSTextInput, NSTextContent, STTextViewProtocol {
         _usageBoundsForTextContainerObserver = nil
         _usageBoundsForTextContainerObserver = textLayoutManager.observe(\.usageBoundsForTextContainer, options: [.initial, .new]) { [weak self] _, _ in
             // FB13291926: Notification no longer works. Fixed again in macOS 15.6
-            self?.needsUpdateConstraints = true
+            self?.invalidateIntrinsicContentSize()
         }
     }
 
@@ -973,11 +973,6 @@ open class STTextView: NSView, NSTextInput, NSTextContent, STTextViewProtocol {
             width: textSize.width + gutterWidth,
             height: textSize.height
         )
-    }
-
-    override open func updateConstraints() {
-        updateTextContainerSize()
-        super.updateConstraints()
     }
 
     override open class var isCompatibleWithResponsiveScrolling: Bool {
