@@ -78,10 +78,17 @@ let package = Package(
             name: "STObjCLandShim",
             publicHeadersPath: "include"
         ),
+        .executableTarget(
+            name: "STTextViewAppKitCrashHelper",
+            dependencies: [
+                .target(name: "STTextViewAppKit", condition: .when(platforms: [.macOS]))
+            ]
+        ),
         .testTarget(
             name: "STTextViewAppKitTests",
             dependencies: [
-                .target(name: "STTextViewAppKit", condition: .when(platforms: [.macOS]))
+                .target(name: "STTextViewAppKit", condition: .when(platforms: [.macOS])),
+                .target(name: "STTextViewAppKitCrashHelper", condition: .when(platforms: [.macOS]))
             ]
         ),
         .testTarget(

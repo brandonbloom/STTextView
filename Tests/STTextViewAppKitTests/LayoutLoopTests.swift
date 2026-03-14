@@ -1,5 +1,6 @@
 #if os(macOS)
     import AppKit
+    import Foundation
     import XCTest
     @testable import STTextViewAppKit
 
@@ -134,6 +135,21 @@
                 NSMaxRange(NSRange(beforeRange, in: textView.textContentManager))
             )
         }
+
+        func testSelectAllDeleteInSwiftUIHSplitViewHelper() throws {
+            let process = Process()
+            process.executableURL = helperExecutableURL()
+
+            try process.run()
+            process.waitUntilExit()
+
+            XCTAssertEqual(
+                process.terminationReason,
+                .exit,
+                "Crash helper terminated abnormally with status \(process.terminationStatus)"
+            )
+            XCTAssertEqual(process.terminationStatus, EXIT_SUCCESS)
+        }
     }
 
     @MainActor
@@ -258,5 +274,26 @@
             invalidatedIntrinsicContentSizeCount += 1
             super.invalidateIntrinsicContentSize()
         }
+    }
+
+    private func helperExecutableURL(file: StaticString = #filePath, line: UInt = #line) -> URL {
+        let bundleURL = Bundle(for: LayoutLoopTests.self).bundleURL
+        let executableURL = URL(fileURLWithPath: CommandLine.arguments[0])
+        let candidates = [
+            bundleURL.deletingLastPathComponent().appendingPathComponent("STTextViewAppKitCrashHelper"),
+            executableURL
+                .deletingLastPathComponent()
+                .deletingLastPathComponent()
+                .deletingLastPathComponent()
+                .appendingPathComponent("STTextViewAppKitCrashHelper")
+        ]
+
+        if let helperURL = candidates.first(where: { FileManager.default.isExecutableFile(atPath: $0.path) }) {
+            return helperURL
+        }
+
+        let checkedPaths = candidates.map { $0.path }.joined(separator: ", ")
+        XCTFail("Missing crash helper. Checked: \(checkedPaths)", file: file, line: line)
+        return candidates[0]
     }
 #endif
