@@ -71,6 +71,69 @@
 
             XCTAssertGreaterThan(textView.invalidatedIntrinsicContentSizeCount, 0)
         }
+
+        func testSelectionScrollLocationSkipsSelectionsAlreadyInViewport() {
+            let harness = ScrollViewHarness()
+            let textView = harness.textView
+
+            textView.isHorizontallyResizable = false
+            textView.isVerticallyResizable = true
+            textView.text = Array(repeating: "alpha beta gamma delta epsilon zeta eta theta iota kappa", count: 200).joined(separator: "\n")
+
+            harness.flushLayout()
+
+            XCTAssertNil(textView.textLocationForScrollingSelection(toVisible: textView.textLayoutManager.documentRange))
+        }
+
+        func testSelectionScrollLocationUsesNearestSelectionEdgeOutsideViewport() throws {
+            let harness = ScrollViewHarness()
+            let textView = harness.textView
+
+            textView.isHorizontallyResizable = false
+            textView.isVerticallyResizable = true
+            textView.text = Array(repeating: "alpha beta gamma delta epsilon zeta eta theta iota kappa", count: 200).joined(separator: "\n")
+
+            harness.flushLayout()
+
+            guard let initialViewportRange = textView.textLayoutManager.textViewportLayoutController.viewportRange else {
+                return XCTFail("Missing initial viewport range")
+            }
+
+            let documentStart = textView.textLayoutManager.documentRange.location
+            let initialViewportEndOffset = textView.textContentManager.offset(from: documentStart, to: initialViewportRange.endLocation)
+            let afterRange = try XCTUnwrap(
+                NSTextRange(
+                    NSRange(location: min(initialViewportEndOffset + 1, textView.text!.utf16.count - 1), length: 1),
+                    in: textView.textContentManager
+                )
+            )
+            let afterLocation = try XCTUnwrap(textView.textLocationForScrollingSelection(toVisible: afterRange))
+            XCTAssertEqual(
+                textView.textContentManager.offset(from: documentStart, to: afterLocation),
+                NSRange(afterRange, in: textView.textContentManager).location
+            )
+
+            harness.scrollToBottom()
+
+            guard let viewportRange = textView.textLayoutManager.textViewportLayoutController.viewportRange else {
+                return XCTFail("Missing viewport range")
+            }
+
+            let viewportStartOffset = textView.textContentManager.offset(from: documentStart, to: viewportRange.location)
+
+            let beforeRange = try XCTUnwrap(
+                NSTextRange(
+                    NSRange(location: 0, length: max(1, viewportStartOffset - 1)),
+                    in: textView.textContentManager
+                )
+            )
+            let beforeLocation = try XCTUnwrap(textView.textLocationForScrollingSelection(toVisible: beforeRange))
+
+            XCTAssertEqual(
+                textView.textContentManager.offset(from: documentStart, to: beforeLocation),
+                NSMaxRange(NSRange(beforeRange, in: textView.textContentManager))
+            )
+        }
     }
 
     @MainActor
