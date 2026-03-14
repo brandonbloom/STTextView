@@ -760,6 +760,7 @@ open class STTextView: NSView, NSTextInput, NSTextContent, STTextViewProtocol {
     }
 
     private var didChangeSelectionNotificationObserver: NSObjectProtocol?
+    private var isContentSizeUpdatePending = false
     private func setupTextLayoutManager(_ textLayoutManager: NSTextLayoutManager) {
         textLayoutManager.delegate = self
         textLayoutManager.textViewportLayoutController.delegate = self
@@ -796,7 +797,21 @@ open class STTextView: NSView, NSTextInput, NSTextContent, STTextViewProtocol {
         _usageBoundsForTextContainerObserver = nil
         _usageBoundsForTextContainerObserver = textLayoutManager.observe(\.usageBoundsForTextContainer, options: [.initial, .new]) { [weak self] _, _ in
             // FB13291926: Notification no longer works. Fixed again in macOS 15.6
-            self?.needsUpdateConstraints = true
+            self?.invalidateIntrinsicContentSize()
+        }
+    }
+
+    func scheduleContentSizeUpdateIfNeeded() {
+        guard !isContentSizeUpdatePending else {
+            return
+        }
+
+        isContentSizeUpdatePending = true
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.isContentSizeUpdatePending = false
+            // Defer document-view frame mutations until AppKit finishes the current layout/update cycle.
+            self.updateContentSizeIfNeeded()
         }
     }
 
@@ -973,11 +988,6 @@ open class STTextView: NSView, NSTextInput, NSTextContent, STTextViewProtocol {
             width: textSize.width + gutterWidth,
             height: textSize.height
         )
-    }
-
-    override open func updateConstraints() {
-        updateTextContainerSize()
-        super.updateConstraints()
     }
 
     override open class var isCompatibleWithResponsiveScrolling: Bool {
@@ -1384,6 +1394,40 @@ open class STTextView: NSView, NSTextInput, NSTextContent, STTextViewProtocol {
         }
     }
 
+    func textLocationForScrollingSelection(toVisible textRange: NSTextRange) -> NSTextLocation? {
+        guard !textRange.isEmpty else {
+            return textRange.location
+        }
+
+        let documentRange = textLayoutManager.documentRange
+        if textRange.location == documentRange.location, textRange.endLocation == documentRange.endLocation {
+            return nil
+        }
+
+        var viewportRange = textLayoutManager.textViewportLayoutController.viewportRange
+        if viewportRange == nil {
+            layoutViewport()
+            viewportRange = textLayoutManager.textViewportLayoutController.viewportRange
+        }
+
+        guard let viewportRange else {
+            return textRange.location
+        }
+
+        if textRange.intersects(viewportRange) {
+            return nil
+        }
+
+        let selectionEndsBeforeViewport = textContentManager.offset(
+            from: textRange.endLocation,
+            to: viewportRange.location
+        ) > 0
+        if selectionEndsBeforeViewport {
+            return textRange.endLocation
+        }
+
+        return textRange.location
+    }
     private var effectiveVisibleRect: CGRect {
         visibleRect.isInfinite ? bounds : visibleRect
     }

@@ -107,6 +107,11 @@
 
             window.contentView?.layoutSubtreeIfNeeded()
             textView.layoutSubtreeIfNeeded()
+
+            RunLoop.current.run(until: Date().addingTimeInterval(0.01))
+
+            window.contentView?.layoutSubtreeIfNeeded()
+            textView.layoutSubtreeIfNeeded()
         }
 
         func scrollToBottom() {}

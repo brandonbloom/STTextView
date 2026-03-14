@@ -84,7 +84,7 @@ extension STTextView: NSTextViewportLayoutControllerDelegate {
         }
         lastUsedFragmentViews.removeAll()
 
-        updateContentSizeIfNeeded()
+        scheduleContentSizeUpdateIfNeeded()
 
         // When scrolled to the end of the document, relocate viewport to ensure proper layout
         if let scrollView, let documentView = scrollView.documentView, scrollView.contentView.bounds.maxY >= documentView.bounds.maxY,
