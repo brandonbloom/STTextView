@@ -760,6 +760,7 @@ open class STTextView: NSView, NSTextInput, NSTextContent, STTextViewProtocol {
     }
 
     private var didChangeSelectionNotificationObserver: NSObjectProtocol?
+    private var isContentSizeUpdatePending = false
     private func setupTextLayoutManager(_ textLayoutManager: NSTextLayoutManager) {
         textLayoutManager.delegate = self
         textLayoutManager.textViewportLayoutController.delegate = self
@@ -797,6 +798,20 @@ open class STTextView: NSView, NSTextInput, NSTextContent, STTextViewProtocol {
         _usageBoundsForTextContainerObserver = textLayoutManager.observe(\.usageBoundsForTextContainer, options: [.initial, .new]) { [weak self] _, _ in
             // FB13291926: Notification no longer works. Fixed again in macOS 15.6
             self?.invalidateIntrinsicContentSize()
+        }
+    }
+
+    func scheduleContentSizeUpdateIfNeeded() {
+        guard !isContentSizeUpdatePending else {
+            return
+        }
+
+        isContentSizeUpdatePending = true
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.isContentSizeUpdatePending = false
+            // Defer document-view frame mutations until AppKit finishes the current layout/update cycle.
+            self.updateContentSizeIfNeeded()
         }
     }
 
